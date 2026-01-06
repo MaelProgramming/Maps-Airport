@@ -1,8 +1,8 @@
 package com.mapsairport.model
 
 data class Airport(
-    val id : Int,
-    val code: String,
-    val name: String,
-    val city: String
+    val id: Int = 0,
+    val code: String = "",
+    val name: String = "",
+    val city: String = ""
 )
