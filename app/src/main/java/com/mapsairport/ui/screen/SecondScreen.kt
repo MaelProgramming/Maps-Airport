@@ -1,47 +1,81 @@
 package com.mapsairport.ui.screen
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mapsairport.viewmodel.HomeViewModel
-
-
 
 @Composable
 fun SecondScreen(
-    navController: NavController?,
+    navController: NavController,
     airportId: String?,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel
 ) {
-    // Récupère l'aéroport depuis le ViewModel, même ceux ajoutés dynamiquement
-    val airport = viewModel.airports.find { it.id == airportId?.toIntOrNull() }
+    val controlPoints by viewModel.controlPoints.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
-        if (airport != null) {
-            Text(text = "ID: ${airport.id}")
-            Text(text = "Code: ${airport.code}")
-            Text(text = "Nom: ${airport.name}")
-            Text(text = "Ville: ${airport.city}")
-        } else {
-            Text("Aéroport non trouvé")
+
+        // Bouton Retour
+        Button(onClick = { navController.popBackStack() }) {
+            Text("← Retour")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { navController?.popBackStack() }) {
-            Text("Retour")
+        Text(
+            text = "Détails de l'aéroport $airportId",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Liste des points de contrôle
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            val airportControls = controlPoints.filter { it.airportId == airportId }
+            items(airportControls) { cp ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = cp.name, style = MaterialTheme.typography.titleMedium)
+                        Text(text = "En attente: ${cp.currentUsers} / ${cp.capacity}")
+                        Text(text = "Temps estimé: ${viewModel.estimatedTime(cp)} min")
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row {
+                            Button(onClick = { viewModel.updateCongestion(cp.id, +1) }) {
+                                Text("+")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(onClick = { viewModel.updateCongestion(cp.id, -1) }) {
+                                Text("-")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (airportControls.isEmpty()) {
+                item {
+                    Text(
+                        text = "Aucun point de contrôle pour cet aéroport",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
         }
     }
 }
