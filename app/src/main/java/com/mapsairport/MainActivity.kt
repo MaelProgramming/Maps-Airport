@@ -58,9 +58,19 @@ class MainActivity : ComponentActivity() {
                             )
 
                         }
-                        composable("map") {
-                            MapScreen(navController = navController, viewModel = sharedViewModel)
+                        composable(
+                            route = "map/{id}",
+                            arguments = listOf(navArgument("id") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val id = backStackEntry.arguments?.getString("id")
+
+                            MapScreen(
+                                navController = navController,
+                                viewModel = sharedViewModel,
+                                airportId = id
+                            )
                         }
+
                     }
                 }
             }
