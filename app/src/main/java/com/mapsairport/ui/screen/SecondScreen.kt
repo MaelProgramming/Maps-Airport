@@ -1,8 +1,6 @@
 package com.mapsairport.ui.screen
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,41 +22,35 @@ fun SecondScreen(
             .padding(16.dp)
     ) {
 
-        // Bouton Retour
-        Button(onClick = { navController.popBackStack() }) {
-            Text("← Retour")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Text(
-            text = "Détails de l'aéroport $airportId",
+            text = "Airport $airportId",
             style = MaterialTheme.typography.headlineMedium
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Liste des points de contrôle
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            val airportControls = controlPoints.filter { it.airportId == airportId }
-            items(airportControls) { cp ->
+        controlPoints
+            .filter { it.airportId == airportId }
+            .forEach { cp ->
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = cp.name, style = MaterialTheme.typography.titleMedium)
-                        Text(text = "En attente: ${cp.currentUsers} / ${cp.capacity}")
-                        Text(text = "Temps estimé: ${viewModel.estimatedTime(cp)} min")
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = cp.name)
+                        Text(text = "Users: ${cp.currentUsers}")
+                        Text(text = "ETA: ${viewModel.estimatedTime(cp)} min")
 
-                        Row {
+                        Row(modifier = Modifier.padding(top = 8.dp)) {
                             Button(onClick = { viewModel.updateCongestion(cp.id, +1) }) {
                                 Text("+")
                             }
+
                             Spacer(modifier = Modifier.width(8.dp))
+
                             Button(onClick = { viewModel.updateCongestion(cp.id, -1) }) {
                                 Text("-")
                             }
@@ -67,15 +59,24 @@ fun SecondScreen(
                 }
             }
 
-            if (airportControls.isEmpty()) {
-                item {
-                    Text(
-                        text = "Aucun point de contrôle pour cet aéroport",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Bouton pour accéder à la Map
+        Button(
+            onClick = { navController.navigate("map") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Voir sur la carte")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Bouton retour
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Retour")
         }
     }
 }

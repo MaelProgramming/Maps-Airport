@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument // <--- IMPORT THIS
 import com.mapsairport.ui.screen.HomeScreen
+import com.mapsairport.ui.screen.MapScreen
 import com.mapsairport.ui.screen.SecondScreen
 import com.mapsairport.ui.theme.MapsAirportTheme
 import com.mapsairport.viewmodel.HomeViewModel
@@ -55,6 +56,10 @@ class MainActivity : ComponentActivity() {
                                 airportId = id,
                                 viewModel = sharedViewModel
                             )
+
+                        }
+                        composable("map") {
+                            MapScreen(navController = navController, viewModel = sharedViewModel)
                         }
                     }
                 }

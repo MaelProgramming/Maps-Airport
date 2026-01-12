@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.room.parser.expansion.Position
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -18,32 +19,37 @@ import com.mapsairport.viewmodel.HomeViewModel
 @Composable
 fun MapScreen(
     navController: NavController,
+    airportId: String?,
     viewModel: HomeViewModel = viewModel()
 ) {
     val airports = viewModel.airports
+    val airport = airports.find { it.id.toString() == airportId }
 
-    // Position initiale de la caméra sur Madrid
+    // Coordonnées initiales
+    val initialLatLng = airport?.let { LatLng(it.latitude, it.longitude) } ?: LatLng(40.4168, -3.7038)
+    val initialZoom = 10f
+
+    // Correct : on utilise CameraPosition
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 5f)
+        position = CameraPosition.fromLatLngZoom(initialLatLng, initialZoom)
     }
 
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
         cameraPositionState = cameraPositionState
     ) {
-        airports.forEach { airport ->
-            // Marker avec latitude et longitude de l'aéroport
+        // Markers pour tous les aéroports
+        airports.forEach { ap ->
             Marker(
-                state = com.google.maps.android.compose.MarkerState(
-                    position = LatLng(airport.latitude, airport.longitude)
-                ),
-                title = airport.name,
-                snippet = airport.city,
+                state = com.google.maps.android.compose.MarkerState(position = LatLng(ap.latitude, ap.longitude)),
+                title = ap.name,
+                snippet = ap.city,
                 onClick = {
-                    navController.navigate("second/${airport.id}")
+                    navController.navigate("second/${ap.id}")
                     true
                 }
             )
         }
     }
 }
+
