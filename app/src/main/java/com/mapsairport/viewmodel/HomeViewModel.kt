@@ -1,6 +1,5 @@
 package com.mapsairport.viewmodel
 
-// Import pour toutes les libs natives
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase

@@ -12,7 +12,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument // <--- IMPORT THIS
+import androidx.navigation.navArgument
 import com.mapsairport.ui.screen.HomeScreen
 import com.mapsairport.ui.screen.MapScreen
 import com.mapsairport.ui.screen.SecondScreen
@@ -29,12 +29,11 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    // Create the ViewModel here to share data between screens
                     val sharedViewModel: HomeViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "home") {
 
-                        // Screen 1: Home
+                        // Home Screen
                         composable("home") {
                             HomeScreen(
                                 navController = navController,
@@ -42,35 +41,37 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Screen 2: Detail
-                        // CRASH FIX: You must define 'arguments' list here!
+                        // Second Screen with ID argument
                         composable(
                             route = "second/{id}",
-                            arguments = listOf(navArgument("id") { type = NavType.StringType })
+                            arguments = listOf(navArgument("id") {
+                                type = NavType.StringType
+                                nullable = false // argument obligatoire
+                            })
                         ) { backStackEntry ->
-                            // Get the ID safely
-                            val id = backStackEntry.arguments?.getString("id")
-
+                            val id = backStackEntry.arguments!!.getString("id")!!
                             SecondScreen(
                                 navController = navController,
                                 airportId = id,
                                 viewModel = sharedViewModel
                             )
-
                         }
+
+                        // Map Screen with ID argument
                         composable(
                             route = "map/{id}",
-                            arguments = listOf(navArgument("id") { type = NavType.StringType })
+                            arguments = listOf(navArgument("id") {
+                                type = NavType.StringType
+                                nullable = false
+                            })
                         ) { backStackEntry ->
-                            val id = backStackEntry.arguments?.getString("id")
-
+                            val id = backStackEntry.arguments!!.getString("id")!!
                             MapScreen(
                                 navController = navController,
                                 viewModel = sharedViewModel,
                                 airportId = id
                             )
                         }
-
                     }
                 }
             }
