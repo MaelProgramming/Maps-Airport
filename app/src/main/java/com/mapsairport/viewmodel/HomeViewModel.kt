@@ -55,7 +55,14 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun addAirport(airport: Airport) {
+    fun addAirport(name: String, city: String, latitude: Double, longitude: Double) {
+        val airport = Airport(
+            id = System.currentTimeMillis().toInt(), // ou un autre id unique
+            name = name,
+            city = city,
+            latitude = latitude,
+            longitude = longitude
+        )
         airportCollection.document(airport.id.toString()).set(airport)
     }
 

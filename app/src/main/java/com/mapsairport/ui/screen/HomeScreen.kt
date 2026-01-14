@@ -10,17 +10,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.mapsairport.component.AddAirportForm
 import com.mapsairport.model.Airport
+import com.mapsairport.viewmodel.AuthViewModel
 import com.mapsairport.viewmodel.HomeViewModel
 
 @Composable
 fun HomeScreen(
     navController: NavController,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel()  // Ajouté pour gérer l'utilisateur
 ) {
-    var code by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
-    var city by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
 
     Column(
@@ -28,11 +28,24 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Titre
-        Text(
-            text = "Welcome to Maps Airport",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        // Nom de l'utilisateur et bouton déconnexion
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Bienvenue, ${authViewModel.user?.name ?: "Invité"}",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Button(onClick = {
+                authViewModel.logout()
+                navController.navigate("login") {
+                    popUpTo("home") { inclusive = true }
+                }
+            }) {
+                Text("Déconnexion")
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -58,7 +71,6 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clickable {
-                            // Navigation vers SecondScreen avec l'ID de l'aéroport
                             navController.navigate("second/${airport.id}")
                         }
                 ) {
@@ -73,54 +85,11 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Formulaire pour ajouter un nouvel aéroport
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(8.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it },
-                    label = { Text("Code IATA") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nom") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = city,
-                    onValueChange = { city = it },
-                    label = { Text("Ville") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        if (code.isNotBlank() && name.isNotBlank() && city.isNotBlank()) {
-                            // Génère un ID basé sur les IDs existants
-                            val newId = (viewModel.airports.maxOfOrNull { it.id } ?: 0) + 1
-                            val airport = Airport(
-                                id = newId,
-                                code = code.uppercase(),
-                                name = name,
-                                city = city
-                            )
-                            viewModel.addAirport(airport)
-
-                            // Reset des champs
-                            code = ""
-                            name = ""
-                            city = ""
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Ajouter")
-                }
+        AddAirportForm(
+            viewModel = viewModel,
+            onDone = {
+                println("Aéroport ajouté avec succès !")
             }
-        }
+        )
     }
 }

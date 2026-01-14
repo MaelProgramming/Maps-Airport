@@ -11,7 +11,7 @@ import com.mapsairport.viewmodel.HomeViewModel
 @Composable
 fun SecondScreen(
     navController: NavController,
-    airportId: String?,
+    airportId: String,
     viewModel: HomeViewModel
 ) {
     val controlPoints by viewModel.controlPoints.collectAsState()
@@ -63,7 +63,9 @@ fun SecondScreen(
 
         // Bouton pour accéder à la Map
         Button(
-            onClick = { navController.navigate("map") },
+            onClick = {
+                navController.navigate("map/$airportId")
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Voir sur la carte")

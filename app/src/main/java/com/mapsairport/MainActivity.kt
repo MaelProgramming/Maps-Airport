@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -13,10 +14,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.mapsairport.ui.screen.HomeScreen
-import com.mapsairport.ui.screen.MapScreen
-import com.mapsairport.ui.screen.SecondScreen
+import com.mapsairport.ui.screen.*
 import com.mapsairport.ui.theme.MapsAirportTheme
+import com.mapsairport.viewmodel.AuthViewModel
 import com.mapsairport.viewmodel.HomeViewModel
 
 class MainActivity : ComponentActivity() {
@@ -30,25 +30,34 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     val sharedViewModel: HomeViewModel = viewModel()
+                    val authViewModel: AuthViewModel = viewModel()
 
-                    NavHost(navController = navController, startDestination = "home") {
+                    // Start destination dynamique
+                    val startDestination = if (authViewModel.user != null) "home" else "login"
+
+                    NavHost(navController = navController, startDestination = startDestination) {
+
+                        // Login Screen
+                        composable("login") {
+                            LoginScreen(navController = navController, authViewModel = authViewModel)
+                        }
+
+                        // Register Screen
+                        composable("register") {
+                            RegisterScreen(navController = navController, authViewModel = authViewModel)
+                        }
 
                         // Home Screen
                         composable("home") {
                             HomeScreen(
                                 navController = navController,
-                                viewModel = sharedViewModel
+                                viewModel = sharedViewModel,
+                                authViewModel = authViewModel
                             )
                         }
 
                         // Second Screen with ID argument
-                        composable(
-                            route = "second/{id}",
-                            arguments = listOf(navArgument("id") {
-                                type = NavType.StringType
-                                nullable = false // argument obligatoire
-                            })
-                        ) { backStackEntry ->
+                        composable("second/{id}") { backStackEntry ->
                             val id = backStackEntry.arguments!!.getString("id")!!
                             SecondScreen(
                                 navController = navController,
@@ -60,10 +69,7 @@ class MainActivity : ComponentActivity() {
                         // Map Screen with ID argument
                         composable(
                             route = "map/{id}",
-                            arguments = listOf(navArgument("id") {
-                                type = NavType.StringType
-                                nullable = false
-                            })
+                            arguments = listOf(navArgument("id") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val id = backStackEntry.arguments!!.getString("id")!!
                             MapScreen(
