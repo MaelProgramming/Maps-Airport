@@ -19,10 +19,20 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    signingConfigs{
+        create("release") {
+            keyAlias = "mapsairport_key"
+            keyPassword = "mapsairport"
+            storeFile = file("C:/Projects/Maps-Airport/mapsairport.jks")
+            storePassword = "mapsairport"
+
+        }
+    }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -90,6 +100,10 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
+
+    // Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:20.6.0")
+
 
     // Tests
     testImplementation(libs.junit)
