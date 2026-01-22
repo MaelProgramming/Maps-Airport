@@ -1,4 +1,4 @@
-package com.mapsairport.viewmodel
+package com.mapsairport.viewmodel // Package for view modelsaz
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
@@ -13,15 +13,16 @@ import android.util.Log
 
 class HomeViewModel : ViewModel() {
 
-    private val db = Firebase.firestore
-    private val airportCollection = db.collection("airports")
-    private val controlPointCollection = db.collection("controlPoints")
+    private val db = Firebase.firestore // Firestore instance
+    private val airportCollection = db.collection("airports") // Airport collection reference in Firebase
+    private val controlPointCollection = db.collection("controlPoints") // Control point collection reference in Firestore
 
-    private val _airports = mutableStateListOf<Airport>()
-    val airports: List<Airport> get() = _airports
+    private val _airports = mutableStateListOf<Airport>() // List of aiports
+    val airports: List<Airport> get() = _airports // Expose the list of airports as a read-only property
 
-    private val _controlPoints = MutableStateFlow<List<ControlPoint>>(emptyList())
-    val controlPoints: StateFlow<List<ControlPoint>> = _controlPoints
+
+    private val _controlPoints = MutableStateFlow<List<ControlPoint>>(emptyList()) // List of control point (private function)
+    val controlPoints: StateFlow<List<ControlPoint>> = _controlPoints // Expose the list of control point (public function)
 
     init {
         listenToAirports()
@@ -46,6 +47,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // Function to listen the control points collection
     private fun listenToControlPoints() {
         controlPointCollection.addSnapshotListener { snapshot, error ->
             if (error != null) return@addSnapshotListener
@@ -66,10 +68,13 @@ class HomeViewModel : ViewModel() {
         airportCollection.document(airport.id.toString()).set(airport)
     }
 
+    // Function to add a control point in the corresponding Firestore collection
+
     fun addControlPoint(controlPoint: ControlPoint) {
         controlPointCollection.document(controlPoint.id).set(controlPoint)
     }
 
+    // Function to update the congestion of the point
     fun updateCongestion(id: String, deltaUsers: Int) {
         val ref = controlPointCollection.document(id)
 
@@ -81,6 +86,7 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // Function to approximate the waiting time based on the current number of users
     fun estimatedTime(cp: ControlPoint): Int {
         val factor = cp.currentUsers.toFloat() / cp.capacity
         return cp.avgWaitTime + (factor * cp.avgWaitTime).toInt()

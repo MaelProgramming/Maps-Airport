@@ -2,7 +2,6 @@ package com.mapsairport.ui.screen
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -25,19 +24,13 @@ fun MapScreen(
     val airports = viewModel.airports
     val airport = airports.find { it.id.toString() == airportId }
 
-    // On initialise la caméra à Madrid par défaut
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 10f)
-    }
+    // Coordonnées initiales
+    val initialLatLng = airport?.let { LatLng(it.latitude, it.longitude) } ?: LatLng(40.4168, -3.7038)
+    val initialZoom = 10f
 
-    // Quand l'aéroport est trouvé, on recentre la caméra
-    LaunchedEffect(airport) {
-        airport?.let {
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                LatLng(it.latitude, it.longitude),
-                12f
-            )
-        }
+    // Correct : on utilise CameraPosition
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(initialLatLng, initialZoom)
     }
 
     GoogleMap(
@@ -47,9 +40,7 @@ fun MapScreen(
         // Markers pour tous les aéroports
         airports.forEach { ap ->
             Marker(
-                state = com.google.maps.android.compose.MarkerState(
-                    position = LatLng(ap.latitude, ap.longitude)
-                ),
+                state = com.google.maps.android.compose.MarkerState(position = LatLng(ap.latitude, ap.longitude)),
                 title = ap.name,
                 snippet = ap.city,
                 onClick = {

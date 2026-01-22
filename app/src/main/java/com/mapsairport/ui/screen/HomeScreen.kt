@@ -15,6 +15,7 @@ import com.mapsairport.model.Airport
 import com.mapsairport.viewmodel.AuthViewModel
 import com.mapsairport.viewmodel.HomeViewModel
 
+// Function Maps screen @Composable
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -23,6 +24,7 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
+    // Create the interface
     Column(
         modifier = Modifier
             .fillMaxSize()

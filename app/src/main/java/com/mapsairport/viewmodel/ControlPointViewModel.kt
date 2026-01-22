@@ -18,7 +18,6 @@ class ControlPointViewModel : ViewModel() {
         }
     }
 
-    // Simuler la congestion comme Waze-style
     fun updateCongestion(id: String, deltaUsers: Int) {
         _controlPoints.value = _controlPoints.value.map { cp ->
             if (cp.id == id) {
@@ -28,7 +27,6 @@ class ControlPointViewModel : ViewModel() {
         }
     }
 
-    // Calcul simple du temps total avec congestion
     fun estimatedTime(controlPoint: ControlPoint): Int {
         val congestionFactor = controlPoint.currentUsers.toFloat() / controlPoint.capacity
         return controlPoint.avgWaitTime + (congestionFactor * controlPoint.avgWaitTime).toInt()
