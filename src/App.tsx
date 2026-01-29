@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { IndoorMapEngine } from "./engine/IndoorMapEngine";
 
 type Airport = any; // on typeras proprement après
 
-function App(): JSX.Element {
+function App(): React.JSX.Element {
   const [airports, setAirports] = useState<Record<string, Airport>>({});
   const [currentAirportKey, setCurrentAirportKey] = useState<string | null>(null);
 
