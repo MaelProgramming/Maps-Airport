@@ -1,28 +1,42 @@
 import React, { useEffect, useState } from "react";
 import { IndoorMapEngine } from "./engine/IndoorMapEngine";
+import type { Airport } from "./engine/IndoorMapEngine";
+import { fetchAirports } from "./services/firebase"; // notre service Firebaseç
 
-type Airport = any; // on typeras proprement après
 
 function App(): React.JSX.Element {
   const [airports, setAirports] = useState<Record<string, Airport>>({});
   const [currentAirportKey, setCurrentAirportKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("https://backend-mapsairport.vercel.app")
-      .then(res => res.json())
-      .then(data => {
-        setAirports(data);
+    async function loadAirports() {
+      try {
+        const airportsFromFirestore = await fetchAirports();
 
-        // aéroport par défaut
-        const firstKey = Object.keys(data)[0];
+        // On transforme le tableau Firestore en record avec id comme clé
+        const airportsRecord: Record<string, Airport> = {};
+        (airportsFromFirestore as Airport[]).forEach((airport: Airport) => {
+          airportsRecord[airport.id] = airport;
+        });
+
+        setAirports(airportsRecord);
+
+        // Aéroport par défaut
+        const firstKey = Object.keys(airportsRecord)[0];
         setCurrentAirportKey(firstKey);
-      })
-      .catch(err => console.error("Erreur fetch airports", err));
+        setLoading(false);
+      } catch (err) {
+        console.error("Erreur fetch airports", err);
+        setLoading(false);
+      }
+    }
+
+    loadAirports();
   }, []);
 
-  if (!currentAirportKey) {
-    return <p>Chargement...</p>;
-  }
+  if (loading) return <p>Chargement des aéroports...</p>;
+  if (!currentAirportKey) return <p>Aucun aéroport trouvé</p>;
 
   return (
     <div>
@@ -36,10 +50,8 @@ function App(): React.JSX.Element {
               marginRight: 8,
               padding: "6px 12px",
               cursor: "pointer",
-              background:
-                key === currentAirportKey ? "#333" : "#ddd",
-              color:
-                key === currentAirportKey ? "#fff" : "#000",
+              background: key === currentAirportKey ? "#333" : "#ddd",
+              color: key === currentAirportKey ? "#fff" : "#000",
               border: "none",
               borderRadius: 4
             }}

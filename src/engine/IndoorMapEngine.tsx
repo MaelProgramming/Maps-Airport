@@ -2,28 +2,28 @@
 import React, { useState } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
-type Marker = {
+export type Marker = {
   id: string;
   name: string;
   type: string;
   position: { x: number; y: number };
 };
 
-type Area = {
+export type Area = {
   id: string;
   name: string;
   shape: { x: number; y: number }[];
   type: string;
 };
 
-type Floor = {
+export type Floor = {
   level: number;
   name: string;
   areas: Area[];
   markers: Marker[];
 };
 
-type Airport = {
+export type Airport = {
   id: string;
   name: string;
   latitude: number;
@@ -31,7 +31,7 @@ type Airport = {
   floors: Floor[];
 };
 
-type Props = {
+export type Props = {
   airport: Airport;
 };
 
