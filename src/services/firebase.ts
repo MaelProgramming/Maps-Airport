@@ -2,6 +2,8 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import type { DocumentData } from 'firebase/firestore'
+import { getAuth } from "firebase/auth";
+
 
 // Remplace avec tes infos Firebase (trouvables dans la console Firebase)
 const firebaseConfig = {
@@ -16,6 +18,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app)
+
 
 export async function fetchAirports(): Promise<DocumentData[]> {
   const airportsCol = collection(db, "airports");
@@ -23,5 +27,6 @@ export async function fetchAirports(): Promise<DocumentData[]> {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-export { db };
+export { db, auth };
+
 
