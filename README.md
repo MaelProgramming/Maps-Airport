@@ -1,73 +1,49 @@
-# React + TypeScript + Vite
+# ✈️ Maps Airport - Indoor Navigation
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Maps Airport** est une solution moderne de navigation intérieure pour aéroports. L'application permet de visualiser les terminaux en haute précision, de gérer les changements d'étages et de localiser les points d'intérêt (Portes, Services, Lounges) via une interface fluide et responsive.
 
-Currently, two official plugins are available:
+![Status](https://img.shields.io/badge/Status-v1.5--Stable-green)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## ✨ Fonctionnalités (v1.5)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Moteur de Rendu SVG** : Cartographie vectorielle légère et ultra-précise.
+- **Expérience Mobile First** : Navigation tactile intuitive avec zoom, panoramique et menus contextuels adaptés (Bottom Sheets).
+- **Gestion Multi-Niveaux** : Système de switch d'étages dynamique.
+- **Authentification Cloud** : Connexion sécurisée via Google Firebase Auth.
+- **Synchronisation Temps Réel** : Données des aéroports et des terminaux stockées sur Firestore.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Stack Technique
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+| Technologie | Usage |
+| :--- | :--- |
+| **React** | Framework UI |
+| **TypeScript** | Typage et robustesse du code |
+| **Tailwind CSS** | Design responsive et stylisation |
+| **Firebase** | Auth, Firestore & Hosting |
+| **Lucide React** | Bibliothèque d'icônes |
+| **Zoom-Pan-Pinch** | Moteur d'interaction cartographique |
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 📂 Structure des Données (Firestore)
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Le projet utilise une structure NoSQL flexible pour modéliser les aéroports :
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```typescript
+Airport {
+  id: string,
+  name: string,
+  floors: [
+    {
+      level: number,
+      name: string,
+      areas: [{ id, name, type, shape: [{x, y}] }],
+      markers: [{ id, name, type, position: {x, y} }]
+    }
+  ]
+}
