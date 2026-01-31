@@ -44,6 +44,17 @@ Airport {
       name: string,
       areas: [{ id, name, type, shape: [{x, y}] }],
       markers: [{ id, name, type, position: {x, y} }]
+
+```
+
+🗺️ Roadmap v2.0 (Next Steps)
+[ ] Smart Search : Barre de recherche avec autocomplétion pour trouver une Gate instantanément.
+
+[ ] Quick Transfer : Module dédié aux correspondances courtes (calcul de trajet optimal).
+
+[ ] Pathfinding : Tracé visuel de l'itinéraire entre deux points.
+
+[ ] Offline Support : Mise en cache des plans pour une utilisation sans réseau.
     }
   ]
 }
