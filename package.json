@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "deploy": "firebase deploy",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "firebase": "^12.8.0",
+    "firebase-tools": "^15.5.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-zoom-pan-pinch": "^3.7.0",
