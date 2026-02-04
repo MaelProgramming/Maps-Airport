@@ -1,6 +1,4 @@
-import { initializeApp } from "firebase/app";
-import { 
-  getFirestore, 
+import {  
   collection, 
   getDocs, 
   addDoc, 
@@ -10,24 +8,23 @@ import {
   updateDoc,
   doc,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  Timestamp,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import type { UserReport, Airport } from "../types/types";
+import { app } from "./firebaseConfig";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBZRx3Bh7l5JIzzz1w76LkWaplBX9GcGbE",
-  authDomain: "mapsairport-2025.firebaseapp.com",
-  projectId: "mapsairport-2025",
-  storageBucket: "mapsairport-2025.firebasestorage.app",
-  messagingSenderId: "1003048235306",
-  appId: "1:1003048235306:web:90dafe4766308bad90ae53",
-  measurementId: "G-BNJN0TG7N1"
-};
-
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+})
 
 // Fetch initial des aéroports
 export async function fetchAirports(): Promise<Airport[]> {
@@ -44,21 +41,26 @@ export const sendReport = async (report: Omit<UserReport, 'id'>) => {
 
 // Real-time subscription pour la v1.6
 export const subscribeToReports = (airportId: string, callback: (reports: UserReport[]) => void) => {
-  const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+  // 1. Convertir le JS Date en Timestamp Firestore
+  const dateThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  const firestoreTimestamp = Timestamp.fromDate(dateThreshold);
   
   const q = query(
     collection(db, "reports"), 
     where("airportId", "==", airportId),
-    where("timestamp", ">", twoHoursAgo)
+    where("timestamp", ">", firestoreTimestamp) // Là, Firebase comprend la comparaison
   );
 
-  // Le onSnapshot renvoie une fonction de "unsubscribe" 
-  // très utile pour le cleanup dans ton useEffect
   return onSnapshot(q, (snapshot) => {
-    const reports = snapshot.docs.map(doc => ({ 
-      id: doc.id, 
-      ...doc.data() 
-    } as UserReport));
+    const reports = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return { 
+        id: doc.id, 
+        ...data,
+        // Optionnel: s'assurer que le timestamp est bien un Timestamp et pas un objet bizarre
+        timestamp: data.timestamp 
+      } as UserReport;
+    });
     callback(reports);
   });
 };
@@ -80,3 +82,4 @@ export const voteForReport = async (reportId: string, userId: string, isUpvote: 
     });
   }
 };
+

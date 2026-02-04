@@ -1,46 +1,43 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { subscribeToReports, sendReport, voteForReport } from "../services/firebase"; 
-import { useAuth } from "../contexts/AuthContext";
-import type { Marker, UserReport, Props } from "../types/types";
 import { Timestamp } from "firebase/firestore";
+
+// Hooks et Contextes
+import { useAuth } from "../contexts/AuthContext";
+import { useAirportReports } from "../hooks/useAirportReports"; // Ton nouveau hook
+
+// Composants et Types
+import { MapMarker } from "./MapMarker"; // Ton nouveau composant
+import type { Marker, UserReport, Props } from "../types/types";
 
 export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
   const { user } = useAuth();
   const [selectedFloor, setSelectedFloor] = useState<number>(0);
   const [activeMarker, setActiveMarker] = useState<Marker | null>(null);
-  const [reports, setReports] = useState<UserReport[]>([]);
+
+  // Utilisation du hook custom : toute la logique Firebase est là-dedans
+  const { reportsMap, sendReport, voteForReport } = useAirportReports(airport.id);
 
   const floor = airport.floors.find((f) => f.level === selectedFloor);
 
-  // 1. Subscription temps réel
-  useEffect(() => {
-    const unsubscribe = subscribeToReports(airport.id, (data) => {
-      setReports(data);
-    });
-    return () => unsubscribe();
-  }, [airport.id]);
-
   if (!floor) return <p className="p-4 text-center text-gray-500">Étage introuvable</p>;
 
-  // 2. Helpers de logique sociale
-  const getReportScore = (report: UserReport) => 
-    (report.upvotes?.length || 0) - (report.downvotes?.length || 0);
+  // --- LOGIQUE DE COLLISION & DATA ---
+  
+  // Clé pour le lookup dans la Map
+  const getMarkerKey = (pos: { x: number; y: number }) => 
+    `${Math.floor(pos.x / 5)},${Math.floor(pos.y / 5)}`;
 
-  // Trouver l'incident sur le marqueur sélectionné
-  const activeReport = reports.find(r => 
-    activeMarker &&
-    Math.abs(r.position.x - activeMarker.position.x) < 5 &&
-    Math.abs(r.position.y - activeMarker.position.y) < 5
-  );
+  // Trouver l'incident sur le marqueur sélectionné via la Map (O(1))
+  const activeReport = activeMarker ? reportsMap.get(getMarkerKey(activeMarker.position)) : undefined;
 
-  // Vérifier les votes de l'utilisateur pour le feedback visuel
   const hasUpvoted = activeReport?.upvotes?.includes(user?.uid || '');
   const hasDownvoted = activeReport?.downvotes?.includes(user?.uid || '');
 
-  // 3. Handlers
+  // --- HANDLERS ---
+
   const handleReport = async (type: UserReport['type']) => {
-    if (!activeMarker) return;
+    if (!activeMarker || !user) return;
     try {
       await sendReport({
         airportId: airport.id,
@@ -48,14 +45,14 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         type,
         severity: 3,
         position: activeMarker.position,
-        timestamp: Timestamp.now(), // Utilisation du type Timestamp
-        userId: user?.uid || 'anonymous',
-        upvotes: [], 
+        timestamp: Timestamp.now(),
+        userId: user.uid,
+        upvotes: [],
         downvotes: []
       });
       setActiveMarker(null);
     } catch (err) {
-      console.error("Erreur lors du signalement:", err);
+      console.error("Erreur signalement:", err);
     }
   };
 
@@ -72,7 +69,7 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
             key={f.level}
             onClick={() => { setSelectedFloor(f.level); setActiveMarker(null); }}
             className={`px-3 py-2 rounded-lg text-xs font-bold shadow transition-all border ${
-              f.level === selectedFloor ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-800 border-gray-200"
+              f.level === selectedFloor ? "bg-gray-800 text-white" : "bg-white text-gray-800"
             }`}
           >
             Niv. {f.level}
@@ -80,7 +77,7 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         ))}
       </div>
 
-      {/* --- TOOLTIP AVEC FEEDBACK DE VOTE --- */}
+      {/* Tooltip de l'incident */}
       {activeMarker && (
         <div className="absolute z-30 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 w-60 animate-in fade-in zoom-in duration-200"
              style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}>
@@ -90,11 +87,9 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
           </div>
 
           {!activeReport ? (
-            <div className="flex flex-col gap-2 mt-4">
-              <button onClick={() => handleReport('traffic')} className="w-full py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition">
-                ⚠️ Signaler un bouchon
-              </button>
-            </div>
+            <button onClick={() => handleReport('traffic')} className="w-full py-2 bg-orange-500 text-white text-xs font-bold rounded-lg mt-4">
+              ⚠️ Signaler un bouchon
+            </button>
           ) : (
             <div className="mt-4 space-y-3">
               <div className="p-2 bg-orange-50 rounded-lg border border-orange-100 text-center">
@@ -102,20 +97,16 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
                 <div className="flex gap-2 mt-2">
                   <button 
                     onClick={() => voteForReport(activeReport.id, user!.uid, true)}
-                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold shadow-sm transition-all ${
-                      hasUpvoted 
-                        ? "bg-green-500 text-white border-green-600 scale-95" 
-                        : "bg-white text-green-600 border-green-200"
+                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold transition-all ${
+                      hasUpvoted ? "bg-green-500 text-white" : "bg-white text-green-600"
                     }`}
                   >
                     {hasUpvoted ? "Confirmé ✓" : `C'est vrai (${activeReport.upvotes?.length || 0})`}
                   </button>
                   <button 
                     onClick={() => voteForReport(activeReport.id, user!.uid, false)}
-                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold shadow-sm transition-all ${
-                      hasDownvoted 
-                        ? "bg-red-500 text-white border-red-600 scale-95" 
-                        : "bg-white text-red-600 border-red-200"
+                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold transition-all ${
+                      hasDownvoted ? "bg-red-500 text-white" : "bg-white text-red-600"
                     }`}
                   >
                     {hasDownvoted ? "Fini ✓" : `Fini (${activeReport.downvotes?.length || 0})`}
@@ -124,10 +115,6 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
               </div>
             </div>
           )}
-          
-          <button className="w-full mt-2 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition" onClick={() => alert("GPS bientôt là")}>
-            S'y rendre
-          </button>
         </div>
       )}
 
@@ -136,32 +123,26 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         <TransformWrapper initialScale={1} centerOnInit={true}>
           <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
             <svg viewBox="0 0 800 600" className="w-full h-full touch-none">
+              {/* Rendu des zones (statique) */}
               {floor.areas.map((area) => (
-                <polygon key={area.id} points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} fill={area.type === "hall" ? "#dbeafe" : "#fce7f3"} stroke="#94a3b8" strokeWidth={1} />
+                <polygon 
+                  key={area.id} 
+                  points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} 
+                  fill={area.type === "hall" ? "#dbeafe" : "#fce7f3"} 
+                  stroke="#94a3b8" 
+                />
               ))}
 
-              {floor.markers.map((marker) => {
-                const report = reports.find(r => 
-                  Math.abs(r.position.x - marker.position.x) < 5 && 
-                  Math.abs(r.position.y - marker.position.y) < 5 &&
-                  getReportScore(r) > -3 // Auto-modération communautaire
-                );
-
-                return (
-                  <g key={marker.id} cursor="pointer" onClick={(e) => { e.stopPropagation(); setActiveMarker(marker); }}>
-                    <circle cx={marker.position.x} cy={marker.position.y} r={22} fill="transparent" />
-                    {report && (
-                      <circle cx={marker.position.x} cy={marker.position.y} r={25} className="fill-orange-500 animate-ping opacity-30" />
-                    )}
-                    <circle
-                      cx={marker.position.x} cy={marker.position.y}
-                      r={activeMarker?.id === marker.id ? 14 : 10}
-                      fill={report ? "#ea580c" : (marker.type === "gate" ? "#22c55e" : "#ef4444")}
-                      stroke="white" strokeWidth={3} className="transition-all duration-300 drop-shadow-md"
-                    />
-                  </g>
-                );
-              })}
+              {/* Rendu des marqueurs (optimisé via MapMarker) */}
+              {floor.markers.map((marker) => (
+                <MapMarker 
+                  key={marker.id}
+                  marker={marker}
+                  report={reportsMap.get(getMarkerKey(marker.position))}
+                  isActive={activeMarker?.id === marker.id}
+                  onClick={(e) => { e.stopPropagation(); setActiveMarker(marker); }}
+                />
+              ))}
             </svg>
           </TransformComponent>
         </TransformWrapper>
