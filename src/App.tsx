@@ -5,7 +5,7 @@ import { fetchAirports } from "./services/firebase";
 import { useAuth } from "./contexts/AuthContext";
 import { loginWithGoogle, logout, loginAnonymously } from "./hooks/useAuth"; 
 
-function App(): React.JSX.Element {
+export default function App(): React.JSX.Element {
   const [airports, setAirports] = useState<Record<string, Airport>>({});
   const { user, loading: authLoading } = useAuth();
   const [currentAirportKey, setCurrentAirportKey] = useState<string | null>(null);
@@ -132,4 +132,3 @@ function App(): React.JSX.Element {
   );
 }
 
-export default App;

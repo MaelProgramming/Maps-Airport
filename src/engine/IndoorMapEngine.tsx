@@ -4,52 +4,53 @@ import { Timestamp } from "firebase/firestore";
 
 // Hooks et Contextes
 import { useAuth } from "../contexts/AuthContext";
-import { useAirportReports } from "../hooks/useAirportReports"; // Ton nouveau hook
+import { useAirportReports } from "../hooks/useAirportReports";
 
 // Composants et Types
-import { MapMarker } from "./MapMarker"; // Ton nouveau composant
+import { MapMarker } from "./MapMarker";
+import { AREA_COLORS } from "../types/types"; // On importe directement la constante du fichier types
 import type { Marker, UserReport, Props } from "../types/types";
+
+// On utilise directement AREA_COLORS exporté de ton fichier types
+const AREA_STYLES = AREA_COLORS;
 
 export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
   const { user } = useAuth();
   const [selectedFloor, setSelectedFloor] = useState<number>(0);
   const [activeMarker, setActiveMarker] = useState<Marker | null>(null);
 
-  // Utilisation du hook custom : toute la logique Firebase est là-dedans
   const { reportsMap, sendReport, voteForReport } = useAirportReports(airport.id);
 
   const floor = airport.floors.find((f) => f.level === selectedFloor);
 
   if (!floor) return <p className="p-4 text-center text-gray-500">Étage introuvable</p>;
 
-  // --- LOGIQUE DE COLLISION & DATA ---
-  
-  // Clé pour le lookup dans la Map
   const getMarkerKey = (pos: { x: number; y: number }) => 
     `${Math.floor(pos.x / 5)},${Math.floor(pos.y / 5)}`;
 
-  // Trouver l'incident sur le marqueur sélectionné via la Map (O(1))
   const activeReport = activeMarker ? reportsMap.get(getMarkerKey(activeMarker.position)) : undefined;
 
   const hasUpvoted = activeReport?.upvotes?.includes(user?.uid || '');
   const hasDownvoted = activeReport?.downvotes?.includes(user?.uid || '');
 
-  // --- HANDLERS ---
-
   const handleReport = async (type: UserReport['type']) => {
     if (!activeMarker || !user) return;
+
+    const reportPayload: Omit<UserReport, 'id'> = {
+      airportId: airport.id,
+      floorLevel: selectedFloor,
+      type,
+      severity: type === 'traffic' ? 2 : 3,
+      status: 'active',
+      position: activeMarker.position,
+      timestamp: Timestamp.now(),
+      userId: user.uid,
+      upvotes: [user.uid],
+      downvotes: []
+    };
+
     try {
-      await sendReport({
-        airportId: airport.id,
-        floorLevel: selectedFloor,
-        type,
-        severity: 3,
-        position: activeMarker.position,
-        timestamp: Timestamp.now(),
-        userId: user.uid,
-        upvotes: [],
-        downvotes: []
-      });
+      await sendReport(reportPayload as unknown as UserReport); 
       setActiveMarker(null);
     } catch (err) {
       console.error("Erreur signalement:", err);
@@ -77,7 +78,7 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         ))}
       </div>
 
-      {/* Tooltip de l'incident */}
+      {/* Tooltip */}
       {activeMarker && (
         <div className="absolute z-30 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 w-60 animate-in fade-in zoom-in duration-200"
              style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}>
@@ -123,17 +124,23 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         <TransformWrapper initialScale={1} centerOnInit={true}>
           <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
             <svg viewBox="0 0 800 600" className="w-full h-full touch-none">
-              {/* Rendu des zones (statique) */}
-              {floor.areas.map((area) => (
-                <polygon 
-                  key={area.id} 
-                  points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} 
-                  fill={area.type === "hall" ? "#dbeafe" : "#fce7f3"} 
-                  stroke="#94a3b8" 
-                />
-              ))}
+              
+              {/* Rendu des zones */}
+              {floor.areas.map((area) => {
+                const style = AREA_STYLES[area.type] || AREA_STYLES.hall;
+                return (
+                  <polygon 
+                    key={area.id} 
+                    points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} 
+                    fill={style.fill} 
+                    stroke={style.stroke}
+                    strokeWidth="1"
+                    className="transition-colors duration-200 hover:opacity-80 cursor-pointer"
+                  />
+                );
+              })}
 
-              {/* Rendu des marqueurs (optimisé via MapMarker) */}
+              {/* Rendu des marqueurs */}
               {floor.markers.map((marker) => (
                 <MapMarker 
                   key={marker.id}

@@ -18,16 +18,16 @@ import { getAuth } from "firebase/auth";
 import type { UserReport, Airport } from "../types/types";
 import { app } from "./firebaseConfig";
 
-export const auth = getAuth(app);
+const auth = getAuth(app);
 
-export const db = initializeFirestore(app, {
+const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 })
 
 // Fetch initial des aéroports
-export async function fetchAirports(): Promise<Airport[]> {
+async function fetchAirports(): Promise<Airport[]> {
   const airportsCol = collection(db, "airports");
   const snapshot = await getDocs(airportsCol);
   // On cast ici pour que le reste de ton app soit contente
@@ -35,12 +35,12 @@ export async function fetchAirports(): Promise<Airport[]> {
 }
 
 // Envoi d'un signalement "Waze-style"
-export const sendReport = async (report: Omit<UserReport, 'id'>) => {
+const sendReport = async (report: Omit<UserReport, 'id'>) => {
   return await addDoc(collection(db, "reports"), report);
 };
 
 // Real-time subscription pour la v1.6
-export const subscribeToReports = (airportId: string, callback: (reports: UserReport[]) => void) => {
+const subscribeToReports = (airportId: string, callback: (reports: UserReport[]) => void) => {
   // 1. Convertir le JS Date en Timestamp Firestore
   const dateThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000);
   const firestoreTimestamp = Timestamp.fromDate(dateThreshold);
@@ -65,7 +65,7 @@ export const subscribeToReports = (airportId: string, callback: (reports: UserRe
   });
 };
 
-export const voteForReport = async (reportId: string, userId: string, isUpvote: boolean) => {
+const voteForReport = async (reportId: string, userId: string, isUpvote: boolean) => {
   const reportRef = doc(db, "reports", reportId);
 
   if (isUpvote) {
@@ -83,3 +83,4 @@ export const voteForReport = async (reportId: string, userId: string, isUpvote: 
   }
 };
 
+export { fetchAirports, sendReport, subscribeToReports, voteForReport, db, auth };
