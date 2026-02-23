@@ -59,6 +59,7 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         floorLevel: selectedFloor,
         type,
         severity: 3,
+        status: "active",
         // ON ARRONDIT ICI POUR LE MATCHING FUTUR
         position: { 
             x: Math.round(activeMarker.position.x), 
