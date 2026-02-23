@@ -1,17 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { 
-  getFirestore, 
-  collection, 
-  getDocs, 
-  addDoc, 
-  query, 
-  where, 
-  onSnapshot,
-  updateDoc,
-  doc,
-  arrayUnion,
-  arrayRemove
-} from "firebase/firestore";
+import { getFirestore, collection, getDocs, addDoc, query, where, onSnapshot,updateDoc,doc, arrayUnion, arrayRemove, Timestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import type { UserReport, Airport } from "../types/types";
 
@@ -44,22 +32,26 @@ export const sendReport = async (report: Omit<UserReport, 'id'>) => {
 
 // Real-time subscription pour la v1.6
 export const subscribeToReports = (airportId: string, callback: (reports: UserReport[]) => void) => {
-  const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+  // 1. Convertir le JS Date en Timestamp Firestore
+  const twoHoursAgoMillis = Date.now() - 2 * 60 * 60 * 1000;
+  const firestoreTimestamp = Timestamp.fromMillis(twoHoursAgoMillis);
   
   const q = query(
     collection(db, "reports"), 
     where("airportId", "==", airportId),
-    where("timestamp", ">", twoHoursAgo)
+    where("timestamp", ">", firestoreTimestamp) // On compare Timestamp vs Timestamp
   );
 
-  // Le onSnapshot renvoie une fonction de "unsubscribe" 
-  // très utile pour le cleanup dans ton useEffect
   return onSnapshot(q, (snapshot) => {
     const reports = snapshot.docs.map(doc => ({ 
       id: doc.id, 
       ...doc.data() 
     } as UserReport));
+    
+    console.log("Flux Firebase mis à jour, nb reports :", reports.length);
     callback(reports);
+  }, (error) => {
+    console.error("Erreur onSnapshot :", error);
   });
 };
 

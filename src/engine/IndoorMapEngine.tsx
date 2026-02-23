@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { subscribeToReports, sendReport, voteForReport } from "../services/firebase"; 
 import { useAuth } from "../contexts/AuthContext";
@@ -13,49 +13,66 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
 
   const floor = airport.floors.find((f) => f.level === selectedFloor);
 
-  // 1. Subscription temps réel
+  // 1. Subscription temps réel aux incidents
   useEffect(() => {
+    console.log("Subscribing to reports for airport:", airport.id);
     const unsubscribe = subscribeToReports(airport.id, (data) => {
+      console.log("Reports reçus de Firebase:", data.length);
       setReports(data);
     });
     return () => unsubscribe();
   }, [airport.id]);
 
+  // 2. Indexation ultra-rapide des reports par position arrondie
+  // On crée une map type "x-y": report pour que le SVG n'ait pas à chercher
+  const indexedReports = useMemo(() => {
+    const index: Record<string, UserReport> = {};
+    reports.forEach(r => {
+      const key = `${Math.round(r.position.x)}-${Math.round(r.position.y)}`;
+      index[key] = r;
+    });
+    return index;
+  }, [reports]);
+
   if (!floor) return <p className="p-4 text-center text-gray-500">Étage introuvable</p>;
 
-  // 2. Helpers de logique sociale
+  // Helpers de score
   const getReportScore = (report: UserReport) => 
     (report.upvotes?.length || 0) - (report.downvotes?.length || 0);
 
-  // Trouver l'incident sur le marqueur sélectionné
-  const activeReport = reports.find(r => 
-    activeMarker &&
-    Math.abs(r.position.x - activeMarker.position.x) < 5 &&
-    Math.abs(r.position.y - activeMarker.position.y) < 5
-  );
+  // Trouver l'incident sur le marqueur sélectionné (via l'index)
+  const activeReport = activeMarker 
+    ? indexedReports[`${Math.round(activeMarker.position.x)}-${Math.round(activeMarker.position.y)}`]
+    : null;
 
-  // Vérifier les votes de l'utilisateur pour le feedback visuel
   const hasUpvoted = activeReport?.upvotes?.includes(user?.uid || '');
   const hasDownvoted = activeReport?.downvotes?.includes(user?.uid || '');
 
-  // 3. Handlers
+  // 3. Handler de signalement
   const handleReport = async (type: UserReport['type']) => {
-    if (!activeMarker) return;
+    if (!activeMarker || !user) return;
+
     try {
+      console.log("Envoi du signalement...");
       await sendReport({
         airportId: airport.id,
         floorLevel: selectedFloor,
         type,
         severity: 3,
-        position: activeMarker.position,
-        timestamp: Timestamp.now(), // Utilisation du type Timestamp
-        userId: user?.uid || 'anonymous',
+        // ON ARRONDIT ICI POUR LE MATCHING FUTUR
+        position: { 
+            x: Math.round(activeMarker.position.x), 
+            y: Math.round(activeMarker.position.y) 
+        },
+        timestamp: Timestamp.now(),
+        userId: user.uid,
         upvotes: [], 
         downvotes: []
       });
-      setActiveMarker(null);
+      console.log("✅ Signalement envoyé !");
+      setActiveMarker(null); // Ferme le tooltip
     } catch (err) {
-      console.error("Erreur lors du signalement:", err);
+      console.error("❌ Erreur signalement:", err);
     }
   };
 
@@ -80,18 +97,24 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         ))}
       </div>
 
-      {/* --- TOOLTIP AVEC FEEDBACK DE VOTE --- */}
+      {/* --- TOOLTIP --- */}
       {activeMarker && (
-        <div className="absolute z-30 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 w-60 animate-in fade-in zoom-in duration-200"
-             style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}>
+        <div 
+          className="absolute z-30 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 w-60 animate-in fade-in zoom-in duration-200"
+          style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}
+          onClick={(e) => e.stopPropagation()} // FIX : Empêche la map de fermer le tooltip
+        >
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-bold text-gray-900">{activeMarker.name}</h3>
             <button onClick={() => setActiveMarker(null)} className="text-gray-400 p-1">✕</button>
           </div>
 
           {!activeReport ? (
-            <div className="flex flex-col gap-2 mt-4">
-              <button onClick={() => handleReport('traffic')} className="w-full py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition">
+            <div className="mt-4">
+              <button 
+                onClick={() => handleReport('traffic')} 
+                className="w-full py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition shadow-lg shadow-orange-200"
+              >
                 ⚠️ Signaler un bouchon
               </button>
             </div>
@@ -102,20 +125,16 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
                 <div className="flex gap-2 mt-2">
                   <button 
                     onClick={() => voteForReport(activeReport.id, user!.uid, true)}
-                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold shadow-sm transition-all ${
-                      hasUpvoted 
-                        ? "bg-green-500 text-white border-green-600 scale-95" 
-                        : "bg-white text-green-600 border-green-200"
+                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold transition-all ${
+                      hasUpvoted ? "bg-green-500 text-white border-green-600" : "bg-white text-green-600 border-green-200"
                     }`}
                   >
                     {hasUpvoted ? "Confirmé ✓" : `C'est vrai (${activeReport.upvotes?.length || 0})`}
                   </button>
                   <button 
                     onClick={() => voteForReport(activeReport.id, user!.uid, false)}
-                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold shadow-sm transition-all ${
-                      hasDownvoted 
-                        ? "bg-red-500 text-white border-red-600 scale-95" 
-                        : "bg-white text-red-600 border-red-200"
+                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold transition-all ${
+                      hasDownvoted ? "bg-red-500 text-white border-red-600" : "bg-white text-red-600 border-red-200"
                     }`}
                   >
                     {hasDownvoted ? "Fini ✓" : `Fini (${activeReport.downvotes?.length || 0})`}
@@ -125,7 +144,7 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
             </div>
           )}
           
-          <button className="w-full mt-2 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition" onClick={() => alert("GPS bientôt là")}>
+          <button className="w-full mt-2 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg" onClick={() => alert("GPS soon...")}>
             S'y rendre
           </button>
         </div>
@@ -136,28 +155,45 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
         <TransformWrapper initialScale={1} centerOnInit={true}>
           <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
             <svg viewBox="0 0 800 600" className="w-full h-full touch-none">
+              {/* Zones (Halls, Shops) */}
               {floor.areas.map((area) => (
-                <polygon key={area.id} points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} fill={area.type === "hall" ? "#dbeafe" : "#fce7f3"} stroke="#94a3b8" strokeWidth={1} />
+                <polygon 
+                  key={area.id} 
+                  points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} 
+                  fill={area.type === "hall" ? "#dbeafe" : "#fce7f3"} 
+                  stroke="#94a3b8" 
+                  strokeWidth={1} 
+                />
               ))}
 
+              {/* Marqueurs avec logique d'incident */}
               {floor.markers.map((marker) => {
-                const report = reports.find(r => 
-                  Math.abs(r.position.x - marker.position.x) < 5 && 
-                  Math.abs(r.position.y - marker.position.y) < 5 &&
-                  getReportScore(r) > -3 // Auto-modération communautaire
-                );
+                // Matching via la clé indexée
+                const report = indexedReports[`${Math.round(marker.position.x)}-${Math.round(marker.position.y)}`];
+                const isReportActive = report && getReportScore(report) > -3;
 
                 return (
                   <g key={marker.id} cursor="pointer" onClick={(e) => { e.stopPropagation(); setActiveMarker(marker); }}>
+                    {/* Zone de clic élargie */}
                     <circle cx={marker.position.x} cy={marker.position.y} r={22} fill="transparent" />
-                    {report && (
-                      <circle cx={marker.position.x} cy={marker.position.y} r={25} className="fill-orange-500 animate-ping opacity-30" />
+                    
+                    {/* Halo clignotant si incident */}
+                    {isReportActive && (
+                      <circle 
+                        cx={marker.position.x} cy={marker.position.y} 
+                        r={25} 
+                        className="fill-orange-500 animate-ping opacity-30" 
+                        style={{ pointerEvents: 'none' }}
+                      />
                     )}
+
                     <circle
                       cx={marker.position.x} cy={marker.position.y}
                       r={activeMarker?.id === marker.id ? 14 : 10}
-                      fill={report ? "#ea580c" : (marker.type === "gate" ? "#22c55e" : "#ef4444")}
-                      stroke="white" strokeWidth={3} className="transition-all duration-300 drop-shadow-md"
+                      fill={isReportActive ? "#ea580c" : (marker.type === "gate" ? "#22c55e" : "#ef4444")}
+                      stroke="white" 
+                      strokeWidth={3} 
+                      className="transition-all duration-300 drop-shadow-md"
                     />
                   </g>
                 );

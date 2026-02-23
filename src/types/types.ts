@@ -24,8 +24,7 @@ export type Floor = {
 export type Airport = {
   id: string;
   name: string;
-  latitude: number;
-  longitude: number;
+  position: Position
   floors: Floor[];
 };
 
@@ -33,6 +32,16 @@ export type Props = {
   airport: Airport;
 };
 
+export type Point = {
+  x: number,
+  y: number
+}
+
+export interface Position {
+  latitude: number,
+  longitude: number
+  
+}
 
 export interface UserReport{
     id: string,

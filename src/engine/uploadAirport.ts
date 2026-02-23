@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
+import type { Floor, Position, Airport} from "../types/types";
 
 // Config Firebase
 const firebaseConfig = {
@@ -12,102 +13,92 @@ const firebaseConfig = {
   measurementId: "G-BNJN0TG7N1"
 };
 
+const position: Position = {
+  latitude:40.4839,
+  longitude:-3.5680
+}
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // Exemple d'aéroport
-const airportGruand = {
-    id: "gruand-airport",
-    name: "Aéroport de Gruand",
-    latitude: 48.8566,
-    longitude: 2.3522,
+const madridBarajas: { 
+  id: string, name: string, position: Position,  floors: Floor[] } = {
+  id: "mad-barajas",
+  name: "Adolfo Suárez Madrid-Barajas (T4)",
+  position: position,
 
-    floors: [
-      {
-        level: 0,
-        name: "Rez-de-chaussée",
-        areas: [
-          {
-            id: "hall1",
-            name: "Hall principal",
-            type: "hall",
-            shape: [
-              { x: 50, y: 50 },
-              { x: 300, y: 50 },
-              { x: 300, y: 200 },
-              { x: 50, y: 200 },
-              { x: 50, y: 50 },
-            ],
-          },
-          {
-            id: "shop1",
-            name: "Boutique duty-free",
-            type: "shop",
-            shape: [
-              { x: 320, y: 60 },
-              { x: 400, y: 60 },
-              { x: 400, y: 150 },
-              { x: 320, y: 150 },
-              { x: 320, y: 60 },
-            ],
-          },
-        ],
-        markers: [
-          {
-            id: "gate-a1",
-            name: "Porte A1",
-            type: "gate",
-            position: { x: 100, y: 100 },
-          },
-          {
-            id: "toilet-0",
-            name: "Toilettes",
-            type: "facility",
-            position: { x: 250, y: 150 },
-          },
-        ],
-      },
-
-      {
-        level: 1,
-        name: "Étage 1",
-        areas: [
-          {
-            id: "vip-lounge",
-            name: "Salon VIP",
-            type: "hall",
-            shape: [
-              { x: 50, y: 50 },
-              { x: 300, y: 50 },
-              { x: 300, y: 200 },
-              { x: 50, y: 200 },
-              { x: 50, y: 50 },
-            ],
-          },
-        ],
-        markers: [
-          {
-            id: "gate-b1",
-            name: "Porte B1",
-            type: "gate",
-            position: { x: 100, y: 100 },
-          },
-          {
-            id: "cafe-1f",
-            name: "Café",
-            type: "shop",
-            position: { x: 200, y: 150 },
-          },
-        ],
-      },
-    ],
-  };
+  floors: [
+    {
+      level: 0,
+      name: "Arrivées (P0)",
+      areas: [
+        {
+          id: "baggage-claim-t4",
+          name: "Zone de récupération des bagages",
+          type: "hall",
+          shape: [
+            { x: 0, y: 0 }, { x: 500, y: 0 }, { x: 500, y: 150 }, { x: 0, y: 150 }, { x: 0, y: 0 }
+          ],
+        }
+      ],
+      markers: [
+        {
+          id: "taxi-stand",
+          name: "Station de Taxi",
+          type: "facility",
+          position: { x: 250, y: 180 },
+        },
+      ],
+    },
+    {
+      level: 1,
+      name: "Départs (P1)",
+      areas: [
+        {
+          id: "duty-free-main",
+          name: "World Duty Free",
+          type: "shop",
+          shape: [
+            { x: 100, y: 50 }, { x: 300, y: 50 }, { x: 300, y: 120 }, { x: 100, y: 120 }, { x: 100, y: 50 }
+          ],
+        },
+        {
+          id: "lounge-velazquez",
+          name: "Sala VIP Velázquez",
+          type: "lounge",
+          shape: [
+            { x: 400, y: 20 }, { x: 480, y: 20 }, { x: 480, y: 80 }, { x: 400, y: 80 }, { x: 400, y: 20 }
+          ],
+        }
+      ],
+      markers: [
+        {
+          id: "gate-j50",
+          name: "Porte J50",
+          type: "gate",
+          position: { x: 50, y: 200 },
+        },
+        {
+          id: "starbucks-t4",
+          name: "Starbucks",
+          type: "shop",
+          position: { x: 320, y: 70 },
+        },
+      ],
+    },
+  ],
+};
 // Fonction pour uploader l'aéroport
-async function uploadAirport(airport: typeof airportGruand) {
-  await setDoc(doc(db, "airports", airport.id), airport);
-  console.log(`Airport ${airport.name} uploaded!`);
+async function uploadAirport(airport: Airport) { 
+  try {
+    const airportRef = doc(db, "airports", airport.id);
+    await setDoc(airportRef, airport);
+    console.log(`✅ [Maps Airport] ${airport.name} est en ligne !`);
+  } catch (e) {
+    console.error("❌ Erreur Firebase :", e);
+  }
 }
 
 // Upload
-uploadAirport(airportGruand).catch(console.error);
+uploadAirport(madridBarajas).catch(console.error);
