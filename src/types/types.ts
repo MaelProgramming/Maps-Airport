@@ -3,6 +3,7 @@ import { Timestamp } from "firebase/firestore";
 type Marker = {
   id: string;
   name: string;
+  label: string;
   type: string;
   position: { x: number; y: number };
 };

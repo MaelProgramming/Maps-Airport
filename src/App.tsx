@@ -1,61 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { IndoorMapEngine } from "./engine/IndoorMapEngine";
-import type { Airport } from "./types/types";
-import { fetchAirports } from "./services/firebase";
+import React, { useState } from "react";
 import { useAuth } from "./contexts/AuthContext";
-// Attention : vérifie si loginWithGoogle/logout sont dans hooks ou services
+import Connector from "./engine/Connector";
 import { loginWithGoogle, logout } from "./hooks/useAuth"; 
 
 function App(): React.JSX.Element {
-  const [airports, setAirports] = useState<Record<string, Airport>>({});
   const { user } = useAuth();
-  const [currentAirportKey, setCurrentAirportKey] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // On peut encore gérer une liste d'IDs ici si Eliot veut switcher entre plusieurs aéroports
+  const [currentAirportId, setCurrentAirportId] = useState<string>("madrid-barajas");
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        // fetchAirports renvoie déjà un Airport[] grâce à notre correction précédente
-        const airportsList = await fetchAirports();
-        
-        if (airportsList.length > 0) {
-          const airportsRecord = airportsList.reduce((acc, airport) => {
-            acc[airport.id] = airport;
-            return acc;
-          }, {} as Record<string, Airport>);
-
-          setAirports(airportsRecord);
-          // On sélectionne le premier aéroport par défaut (ex: Barajas)
-          setCurrentAirportKey(airportsList[0].id);
-        }
-      } catch (err) {
-        console.error("Erreur chargement aéroports:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
-
-  // Early returns pour plus de clarté (pattern classique de dev)
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white text-gray-500 font-medium">
-        <div className="animate-pulse">Chargement de Maps Airport...</div>
-      </div>
-    );
-  }
-
+  // 1. Écran de connexion (Dating-ready : propre et direct)
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-6 px-4 text-center bg-gray-50">
+      <div className="flex flex-col items-center justify-center h-screen gap-6 px-4 text-center bg-gray-50 font-sans">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">Bienvenue sur Maps Airport</h1>
-          <p className="text-gray-600">Évite les bouchons au terminal en un clic.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">MELIO</h1>
+          <p className="text-slate-500 font-medium">L'aviation, sans les bouchons au terminal.</p>
         </div>
         <button
           onClick={loginWithGoogle}
-          className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 font-bold w-full max-w-xs"
+          className="px-8 py-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 font-bold w-full max-w-xs active:scale-95"
         >
           Se connecter avec Google
         </button>
@@ -63,46 +26,32 @@ function App(): React.JSX.Element {
     );
   }
 
-  if (!currentAirportKey || !airports[currentAirportKey]) {
-    return (
-      <div className="flex items-center justify-center h-screen text-red-500 font-bold">
-        Erreur : Aucun aéroport disponible.
-      </div>
-    );
-  }
-
+  // 2. Main App : On utilise le Connector qui va lui-même invoquer le backend
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-white">
-      <header className="flex items-center justify-between p-3 border-b bg-white shadow-sm z-50">
-        <div className="flex overflow-x-auto no-scrollbar gap-2 flex-1 mr-4">
-          {Object.values(airports).map((airport) => {
-            const isActive = airport.id === currentAirportKey;
-            return (
-              <button
-                key={airport.id}
-                onClick={() => setCurrentAirportKey(airport.id)}
-                className={`flex-shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap border ${
-                  isActive 
-                    ? "bg-gray-900 text-white border-gray-900 shadow-md" 
-                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                }`}
-              >
-                {airport.name}
-              </button>
-            );
-          })}
+      <header className="flex items-center justify-between p-4 border-b bg-white/80 backdrop-blur-md z-50">
+        <div className="flex gap-2 flex-1 items-center">
+          <span className="font-black text-lg tracking-tighter mr-4">MELIO</span>
+          {/* Si tu as plusieurs aéroports dans ton backend, on les switcherait ici via l'ID */}
+          <div className="px-4 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-900 border border-slate-200">
+            📍 Madrid-Barajas (MAD)
+          </div>
         </div>
 
         <button
           onClick={logout}
-          className="px-3 py-2 text-red-600 hover:bg-red-50 text-xs font-bold rounded-lg transition"
+          className="px-4 py-2 text-slate-400 hover:text-red-600 text-xs font-bold rounded-xl transition-colors"
         >
           Déconnexion
         </button>
       </header>
 
-      <main className="flex-1 relative w-full overflow-hidden bg-gray-100">
-        <IndoorMapEngine airport={airports[currentAirportKey]} />
+      <main className="flex-1 relative w-full overflow-hidden bg-slate-50">
+        {/* L'INVOCATION EST ICI : 
+           Le Connector va fetcher ton API Vercel et afficher l'IndoorMapEngine 
+           une fois que les data sont prêtes.
+        */}
+        <Connector />
       </main>
     </div>
   );

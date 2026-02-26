@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { subscribeToReports, sendReport, voteForReport } from "../services/firebase"; 
+import { subscribeToReports, voteForReport, sendReport } from "../services/firebase"; 
 import { useAuth } from "../contexts/AuthContext";
 import type { Marker, UserReport, Props } from "../types/types";
 import { Timestamp } from "firebase/firestore";
@@ -11,190 +11,145 @@ export const IndoorMapEngine: React.FC<Props> = ({ airport }) => {
   const [activeMarker, setActiveMarker] = useState<Marker | null>(null);
   const [reports, setReports] = useState<UserReport[]>([]);
 
-  const floor = airport.floors.find((f) => f.level === selectedFloor);
+  // 1. Memoization de l'étage
+  const floor = useMemo(() => {
+    if (!airport?.floors) return null;
+    return airport.floors.find((f) => f?.level === selectedFloor) || null;
+  }, [airport?.floors, selectedFloor]);
 
-  // 1. Subscription temps réel aux incidents
+  // 2. Subscription Realtime (Firebase)
   useEffect(() => {
-    console.log("Subscribing to reports for airport:", airport.id);
+    if (!airport?.id) return;
     const unsubscribe = subscribeToReports(airport.id, (data) => {
-      console.log("Reports reçus de Firebase:", data.length);
       setReports(data);
     });
     return () => unsubscribe();
-  }, [airport.id]);
+  }, [airport?.id]);
 
-  // 2. Indexation ultra-rapide des reports par position arrondie
-  // On crée une map type "x-y": report pour que le SVG n'ait pas à chercher
+  // 3. Indexation O(1) pour les reports (On utilise .position.x/y comme dans ton type)
   const indexedReports = useMemo(() => {
     const index: Record<string, UserReport> = {};
+    if (!reports) return index;
+    
     reports.forEach(r => {
-      const key = `${Math.round(r.position.x)}-${Math.round(r.position.y)}`;
-      index[key] = r;
+      if (r?.floorLevel === selectedFloor && r?.position) {
+        const key = `${Math.round(r.position.x)}-${Math.round(r.position.y)}`;
+        index[key] = r;
+      }
     });
     return index;
-  }, [reports]);
+  }, [reports, selectedFloor]);
 
-  if (!floor) return <p className="p-4 text-center text-gray-500">Étage introuvable</p>;
+  if (!floor) return <div className="h-full flex items-center justify-center text-slate-400 italic">Chargement...</div>;
 
-  // Helpers de score
-  const getReportScore = (report: UserReport) => 
-    (report.upvotes?.length || 0) - (report.downvotes?.length || 0);
-
-  // Trouver l'incident sur le marqueur sélectionné (via l'index)
-  const activeReport = activeMarker 
+  // Récupération du report actif (Respect du type Marker)
+  const activeReport = activeMarker?.position
     ? indexedReports[`${Math.round(activeMarker.position.x)}-${Math.round(activeMarker.position.y)}`]
     : null;
 
-  const hasUpvoted = activeReport?.upvotes?.includes(user?.uid || '');
-  const hasDownvoted = activeReport?.downvotes?.includes(user?.uid || '');
-
-  // 3. Handler de signalement
   const handleReport = async (type: UserReport['type']) => {
-    if (!activeMarker || !user) return;
-
+    if (!activeMarker || !user || !airport?.id) return;
     try {
-      console.log("Envoi du signalement...");
       await sendReport({
         airportId: airport.id,
         floorLevel: selectedFloor,
         type,
         severity: 3,
         status: "active",
-        // ON ARRONDIT ICI POUR LE MATCHING FUTUR
         position: { 
-            x: Math.round(activeMarker.position.x), 
-            y: Math.round(activeMarker.position.y) 
+          x: Math.round(activeMarker.position.x), 
+          y: Math.round(activeMarker.position.y) 
         },
         timestamp: Timestamp.now(),
         userId: user.uid,
-        upvotes: [], 
+        upvotes: [],
         downvotes: []
       });
-      console.log("✅ Signalement envoyé !");
-      setActiveMarker(null); // Ferme le tooltip
+      setActiveMarker(null);
     } catch (err) {
-      console.error("❌ Erreur signalement:", err);
+      console.error("Melio Error:", err);
     }
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-white overflow-hidden">
+    <div className="relative w-full h-full flex flex-col bg-white overflow-hidden font-sans">
       
-      {/* Sélecteur d'étage */}
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-        <h2 className="text-sm font-bold bg-white/90 backdrop-blur px-3 py-2 rounded-lg shadow-sm border border-gray-200">
-          {floor.name}
-        </h2>
-        {airport.floors.map((f) => (
+      {/* SÉLECTEUR D'ÉTAGE */}
+      <div className="absolute top-6 left-6 z-20 flex flex-col gap-3">
+        {[...(airport?.floors || [])].sort((a,b) => (b?.level || 0) - (a?.level || 0)).map((f) => (
           <button
             key={f.level}
             onClick={() => { setSelectedFloor(f.level); setActiveMarker(null); }}
-            className={`px-3 py-2 rounded-lg text-xs font-bold shadow transition-all border ${
-              f.level === selectedFloor ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-800 border-gray-200"
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black shadow-xl transition-all duration-200 border-2 ${
+              f.level === selectedFloor 
+              ? "bg-slate-900 text-white border-slate-900 scale-110" 
+              : "bg-white/90 backdrop-blur text-slate-500 border-white hover:border-slate-200"
             }`}
           >
-            Niv. {f.level}
+            {f.level === 0 ? "P0" : f.level === 1 ? "P1" : f.level}
           </button>
         ))}
       </div>
 
-      {/* --- TOOLTIP --- */}
+      {/* TOOLTIP REPORT */}
       {activeMarker && (
-        <div 
-          className="absolute z-30 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 w-60 animate-in fade-in zoom-in duration-200"
-          style={{ bottom: "20px", left: "50%", transform: "translateX(-50%)" }}
-          onClick={(e) => e.stopPropagation()} // FIX : Empêche la map de fermer le tooltip
-        >
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-bold text-gray-900">{activeMarker.name}</h3>
-            <button onClick={() => setActiveMarker(null)} className="text-gray-400 p-1">✕</button>
-          </div>
-
-          {!activeReport ? (
-            <div className="mt-4">
-              <button 
-                onClick={() => handleReport('traffic')} 
-                className="w-full py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition shadow-lg shadow-orange-200"
-              >
-                ⚠️ Signaler un bouchon
-              </button>
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 bg-white p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-50 w-[90%] max-w-xs">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Localisation</p>
+              <h3 className="text-lg font-black text-slate-900 leading-tight">
+                {activeMarker.name || activeMarker.label}
+              </h3>
             </div>
+            <button onClick={() => setActiveMarker(null)} className="bg-slate-100 p-2 rounded-full text-slate-400">✕</button>
+          </div>
+          
+          {!activeReport ? (
+             <button onClick={() => handleReport('traffic')} className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-sm active:scale-95 shadow-lg shadow-orange-200">
+               ⚠️ SIGNALER UN BOUCHON
+             </button>
           ) : (
-            <div className="mt-4 space-y-3">
-              <div className="p-2 bg-orange-50 rounded-lg border border-orange-100 text-center">
-                <p className="text-[10px] text-orange-700 font-bold uppercase">Incident en cours</p>
-                <div className="flex gap-2 mt-2">
-                  <button 
-                    onClick={() => voteForReport(activeReport.id, user!.uid, true)}
-                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold transition-all ${
-                      hasUpvoted ? "bg-green-500 text-white border-green-600" : "bg-white text-green-600 border-green-200"
-                    }`}
-                  >
-                    {hasUpvoted ? "Confirmé ✓" : `C'est vrai (${activeReport.upvotes?.length || 0})`}
-                  </button>
-                  <button 
-                    onClick={() => voteForReport(activeReport.id, user!.uid, false)}
-                    className={`flex-1 py-2 border rounded-lg text-[10px] font-bold transition-all ${
-                      hasDownvoted ? "bg-red-500 text-white border-red-600" : "bg-white text-red-600 border-red-200"
-                    }`}
-                  >
-                    {hasDownvoted ? "Fini ✓" : `Fini (${activeReport.downvotes?.length || 0})`}
-                  </button>
-                </div>
+            <div className="space-y-3">
+              <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 text-center text-orange-700 text-xs font-bold italic">
+                "Pas mal de monde ici..."
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => voteForReport(activeReport.id, user!.uid, true)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[11px] font-bold">C'EST VRAI</button>
+                <button onClick={() => voteForReport(activeReport.id, user!.uid, false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl text-[11px] font-bold">C'EST FINI</button>
               </div>
             </div>
           )}
-          
-          <button className="w-full mt-2 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg" onClick={() => alert("GPS soon...")}>
-            S'y rendre
-          </button>
         </div>
       )}
 
-      {/* Moteur de Map SVG */}
-      <div className="flex-1 w-full h-full bg-gray-50" onClick={() => setActiveMarker(null)}>
-        <TransformWrapper initialScale={1} centerOnInit={true}>
+      {/* SVG ENGINE */}
+      <div className="flex-1 bg-slate-50" onClick={() => setActiveMarker(null)}>
+        <TransformWrapper centerOnInit minScale={0.8} maxScale={4}>
           <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
-            <svg viewBox="0 0 800 600" className="w-full h-full touch-none">
-              {/* Zones (Halls, Shops) */}
-              {floor.areas.map((area) => (
+            <svg viewBox="0 0 1000 800" className="w-full h-full">
+              {/* Areas */}
+              {floor.areas?.map((area: any) => (
                 <polygon 
                   key={area.id} 
-                  points={area.shape.map((p) => `${p.x},${p.y}`).join(" ")} 
-                  fill={area.type === "hall" ? "#dbeafe" : "#fce7f3"} 
-                  stroke="#94a3b8" 
-                  strokeWidth={1} 
+                  points={area.shape?.map((p: any) => `${p.x},${p.y}`).join(" ")} 
+                  className={`${area.type === "hall" ? "fill-blue-100/40" : "fill-indigo-100/30"} stroke-slate-300 stroke-[0.5]`}
                 />
               ))}
 
-              {/* Marqueurs avec logique d'incident */}
-              {floor.markers.map((marker) => {
-                // Matching via la clé indexée
-                const report = indexedReports[`${Math.round(marker.position.x)}-${Math.round(marker.position.y)}`];
-                const isReportActive = report && getReportScore(report) > -3;
+              {/* Markers (Utilisation stricte du type Marker) */}
+              {floor.markers?.map((marker: Marker) => {
+                const { x, y } = marker.position;
+                const report = indexedReports[`${Math.round(x)}-${Math.round(y)}`];
+                const isReportActive = report && (report.upvotes?.length || 0) >= (report.downvotes?.length || 0);
 
                 return (
-                  <g key={marker.id} cursor="pointer" onClick={(e) => { e.stopPropagation(); setActiveMarker(marker); }}>
-                    {/* Zone de clic élargie */}
-                    <circle cx={marker.position.x} cy={marker.position.y} r={22} fill="transparent" />
-                    
-                    {/* Halo clignotant si incident */}
-                    {isReportActive && (
-                      <circle 
-                        cx={marker.position.x} cy={marker.position.y} 
-                        r={25} 
-                        className="fill-orange-500 animate-ping opacity-30" 
-                        style={{ pointerEvents: 'none' }}
-                      />
-                    )}
-
+                  <g key={marker.id} onClick={(e) => { e.stopPropagation(); setActiveMarker(marker); }} className="cursor-pointer">
+                    {isReportActive && <circle cx={x} cy={y} r={22} className="fill-orange-500 animate-ping opacity-20" />}
                     <circle
-                      cx={marker.position.x} cy={marker.position.y}
-                      r={activeMarker?.id === marker.id ? 14 : 10}
-                      fill={isReportActive ? "#ea580c" : (marker.type === "gate" ? "#22c55e" : "#ef4444")}
-                      stroke="white" 
-                      strokeWidth={3} 
-                      className="transition-all duration-300 drop-shadow-md"
+                      cx={x} cy={y}
+                      r={activeMarker?.id === marker.id ? 10 : 7}
+                      fill={isReportActive ? "#f97316" : (marker.type === "gate" ? "#10b981" : "#6366f1")}
+                      className="stroke-white stroke-[2.5px] drop-shadow-md transition-all duration-300"
                     />
                   </g>
                 );
