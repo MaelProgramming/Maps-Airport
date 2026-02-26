@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useAuth } from "./contexts/AuthContext";
 import Connector from "./engine/Connector";
 import { loginWithGoogle, logout } from "./hooks/useAuth"; 
@@ -6,7 +6,7 @@ import { loginWithGoogle, logout } from "./hooks/useAuth";
 function App(): React.JSX.Element {
   const { user } = useAuth();
   // On peut encore gérer une liste d'IDs ici si Eliot veut switcher entre plusieurs aéroports
-  const [currentAirportId, setCurrentAirportId] = useState<string>("madrid-barajas");
+  // const [currentAirportId ] = useState<string>("madrid-barajas");
 
   // 1. Écran de connexion (Dating-ready : propre et direct)
   if (!user) {
@@ -51,7 +51,7 @@ function App(): React.JSX.Element {
            Le Connector va fetcher ton API Vercel et afficher l'IndoorMapEngine 
            une fois que les data sont prêtes.
         */}
-        <Connector />
+        <Connector/>
       </main>
     </div>
   );
