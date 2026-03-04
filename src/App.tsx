@@ -1,7 +1,8 @@
 import React from "react";
 import { useAuth } from "./contexts/AuthContext";
 import Connector from "./engine/Connector";
-import { loginWithGoogle, logout } from "./hooks/useAuth"; 
+import { loginWithGoogle, logout } from "./hooks/useAuth";
+import { useState } from 'react'
 
 function App(): React.JSX.Element {
   const { user } = useAuth();
