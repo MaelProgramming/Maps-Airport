@@ -4,10 +4,10 @@ import 'leaflet/dist/leaflet.css';
 
 export const IndoorMapEngine = ({ airport }: { airport: any }) => {
   const [terminalData, setTerminalData] = useState<any>(null);
-
+  const API_URL: string = 'https://backend-mapsairport.vercel.app/api/airport/${airport.id}/terminal/t4-main'
   // 1. On va chercher les polygones du T4 spécifiquement
   useEffect(() => {
-    fetch(`https://backend-mapsairport.vercel.app/api/airport/${airport.id}/terminal/t4-main`)
+    fetch(API_URL)
       .then(res => res.json())
       .then(data => setTerminalData(data))
       .catch(err => console.error("Erreur plan Melio:", err));
