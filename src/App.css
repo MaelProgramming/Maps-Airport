@@ -1,0 +1,11 @@
+/* Force la carte à rester à l'arrière-plan */
+.leaflet-container {
+    z-index: 1 !important;
+}
+
+/* Force ton sélecteur à rester au premier plan */
+.melio-ui-overlay {
+    z-index: 9999 !important;
+    position: absolute;
+    pointer-events: auto !important;
+}

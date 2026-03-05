@@ -20,15 +20,14 @@ type AreaType = 'hall' | 'gate' | 'security' | 'lounge' | 'shop' | 'restroom' | 
 type Floor = {
   level: number;
   name: string;
-  areas: Area[];
-  markers: Marker[];
+  areas?: Area[];
+  markers?: Marker[];
 };
 
 type Airport = {
   id: string;
   name: string;
-  latitude: number;
-  longitude: number;
+  position: Position;
   floors: Floor[];
 };
 
