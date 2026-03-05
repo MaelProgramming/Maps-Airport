@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { MapPin, X, Navigation } from 'lucide-react'; 
+import { X, Navigation } from 'lucide-react'; 
 import { FloorSelector } from './FloorSelector';
 
 // --- Types Melio Engine ---
@@ -64,7 +64,7 @@ export const IndoorMapEngine = ({ airport }: { airport: any }) => {
         centerX: sumX / area.path.length,
         centerY: sumY / area.path.length
       };
-    }).sort((a, b) => a.id.includes('outline') ? -1 : 1); // Outline en fond
+    }).sort((a ) => a.id.includes('outline') ? -1 : 1); // Outline en fond
   }, [floorData]);
 
   return (

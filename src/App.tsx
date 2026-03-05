@@ -1,4 +1,4 @@
-import React, { useState } from "react"; // Ajoute useState
+import React from "react"; // Ajoute useState
 import { useAuth } from "./contexts/AuthContext";
 import Connector from "./engine/Connector";
 import './App.css'
@@ -9,7 +9,6 @@ function App(): React.JSX.Element {
   
   // ERROR : App n'a pas accès aux données de l'aéroport ici !
   // Pour que ça marche, tu devrais normalement avoir ces states ici :
-  const [currentLevel, setCurrentLevel] = useState(0);
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-6 px-4 text-center bg-gray-50 font-sans">
